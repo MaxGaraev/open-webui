@@ -1,5 +1,48 @@
 import { WEBUI_API_BASE_URL } from '$lib/constants';
 
+export type SessionUserResponse = {
+        token: string;
+        token_type: string;
+        expires_at: number | null;
+        id: string;
+        email: string;
+        name: string;
+        role: string;
+        profile_image_url: string;
+        permissions: any;
+};
+
+export const guestSignIn = async (): Promise<SessionUserResponse> => {
+        let error: any = null;
+
+        const res = await fetch(`${WEBUI_API_BASE_URL}/auths/guest`, {
+                method: 'POST',
+                headers: {
+                        'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+        })
+                .then(async (res) => {
+                        if (!res.ok) throw await res.json();
+                        return res.json();
+                })
+                .catch((err) => {
+                        console.error(err);
+                        error = err?.detail ?? err;
+                        return null;
+                });
+
+        if (error) {
+                throw error;
+        }
+
+        if (res?.token) {
+                localStorage.token = res.token;
+        }
+
+        return res;
+};
+
 export const getAdminDetails = async (token: string) => {
 	let error = null;
 

@@ -153,11 +153,16 @@
 		}
 	}
 
-	onMount(async () => {
-		const redirectPath = $page.url.searchParams.get('redirect');
-		if ($user !== undefined) {
-			goto(redirectPath || '/');
-		} else {
+        onMount(async () => {
+                if ($config?.features.enable_guest_mode && !localStorage.token) {
+                        goto('/');
+                        return;
+                }
+
+                const redirectPath = $page.url.searchParams.get('redirect');
+                if ($user !== undefined) {
+                        goto(redirectPath || '/');
+                } else {
 			if (redirectPath) {
 				localStorage.setItem('redirectPath', redirectPath);
 			}
