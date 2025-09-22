@@ -50,52 +50,66 @@
 		}
 	});
 
-	let search = '';
-	let defaultPermissions = {
-		workspace: {
-			models: false,
-			knowledge: false,
-			prompts: false,
-			tools: false
-		},
-		sharing: {
-			public_models: false,
-			public_knowledge: false,
-			public_prompts: false,
-			public_tools: false
-		},
-		chat: {
-			controls: true,
-			valves: true,
-			system_prompt: true,
-			params: true,
-			file_upload: true,
-			delete: true,
-			delete_message: true,
-			continue_response: true,
-			regenerate_response: true,
-			rate_response: true,
-			edit: true,
-			share: true,
-			export: true,
-			stt: true,
-			tts: true,
-			call: true,
-			multiple_models: true,
-			temporary: true,
-			temporary_enforced: false
-		},
-		features: {
-			direct_tool_servers: false,
-			web_search: true,
-			image_generation: true,
-			code_interpreter: true,
-			notes: true
-		}
-	};
+        let search = '';
 
-	let showCreateGroupModal = false;
-	let showDefaultPermissionsModal = false;
+        const createDefaultPermissions = () => ({
+                workspace: {
+                        models: false,
+                        knowledge: false,
+                        prompts: false,
+                        tools: false
+                },
+                sharing: {
+                        public_models: false,
+                        public_knowledge: false,
+                        public_prompts: false,
+                        public_tools: false
+                },
+                chat: {
+                        controls: true,
+                        valves: true,
+                        system_prompt: true,
+                        params: true,
+                        file_upload: true,
+                        delete: true,
+                        delete_message: true,
+                        continue_response: true,
+                        regenerate_response: true,
+                        rate_response: true,
+                        edit: true,
+                        share: true,
+                        export: true,
+                        stt: true,
+                        tts: true,
+                        call: true,
+                        multiple_models: true,
+                        temporary: true,
+                        temporary_enforced: false
+                },
+                features: {
+                        direct_tool_servers: false,
+                        web_search: true,
+                        image_generation: true,
+                        code_interpreter: true,
+                        notes: true
+                }
+        });
+
+        const clonePermissions = (permissions) =>
+                JSON.parse(JSON.stringify(permissions ?? createDefaultPermissions()));
+
+        let rolePermissions = {
+                user: createDefaultPermissions(),
+                guest: createDefaultPermissions()
+        };
+
+        const permissionRoles = ['user', 'guest'];
+
+        let selectedRole = 'user';
+        let modalPermissions = createDefaultPermissions();
+
+        let showCreateGroupModal = false;
+        let showDefaultPermissionsModal = false;
 
 	const setGroups = async () => {
 		groups = await getGroups(localStorage.token);
@@ -113,23 +127,52 @@
 		}
 	};
 
-	const updateDefaultPermissionsHandler = async (group) => {
-		console.debug(group.permissions);
+        const updateDefaultPermissionsHandler = async (group) => {
+                const permissions = group?.permissions ?? modalPermissions;
+                const role = selectedRole;
 
-		const res = await updateUserDefaultPermissions(localStorage.token, group.permissions).catch(
-			(error) => {
-				toast.error(`${error}`);
-				return null;
-			}
-		);
+                const res = await updateUserDefaultPermissions(
+                        localStorage.token,
+                        permissions,
+                        role
+                ).catch((error) => {
+                        toast.error(`${error}`);
+                        return null;
+                });
 
-		if (res) {
-			toast.success($i18n.t('Default permissions updated successfully'));
-			defaultPermissions = await getUserDefaultPermissions(localStorage.token);
-		}
-	};
+                if (res) {
+                        toast.success($i18n.t('Default permissions updated successfully'));
+                        rolePermissions = {
+                                ...rolePermissions,
+                                [role]: clonePermissions(res)
+                        };
+                        modalPermissions = clonePermissions(rolePermissions[role]);
+                }
+        };
 
-	onMount(async () => {
+        const openDefaultPermissionsModal = (role) => {
+                selectedRole = role;
+                modalPermissions = clonePermissions(rolePermissions[role]);
+                showDefaultPermissionsModal = true;
+        };
+
+        const loadRolePermissions = async (role) => {
+                const permissions = await getUserDefaultPermissions(localStorage.token, role).catch(
+                        (error) => {
+                                toast.error(`${error}`);
+                                return null;
+                        }
+                );
+
+                if (permissions) {
+                        rolePermissions = {
+                                ...rolePermissions,
+                                [role]: clonePermissions(permissions)
+                        };
+                }
+        };
+
+        onMount(async () => {
 		if ($user?.role !== 'admin') {
 			await goto('/');
 			return;
@@ -145,11 +188,13 @@
 			total = res.total;
 		}
 
-		await setGroups();
-		defaultPermissions = await getUserDefaultPermissions(localStorage.token);
+                await setGroups();
+                await loadRolePermissions('user');
+                await loadRolePermissions('guest');
+                modalPermissions = clonePermissions(rolePermissions[selectedRole]);
 
-		loaded = true;
-	});
+                loaded = true;
+        });
 </script>
 
 {#if loaded}
@@ -234,37 +279,51 @@
 
 		<hr class="mb-2 border-gray-100 dark:border-gray-850" />
 
-		<GroupModal
-			bind:show={showDefaultPermissionsModal}
-			tabs={['permissions']}
-			bind:permissions={defaultPermissions}
-			custom={false}
-			onSubmit={updateDefaultPermissionsHandler}
-		/>
+                <GroupModal
+                        bind:show={showDefaultPermissionsModal}
+                        tabs={['permissions']}
+                        bind:permissions={modalPermissions}
+                        custom={false}
+                        onSubmit={updateDefaultPermissionsHandler}
+                />
 
-		<button
-			class="flex items-center justify-between rounded-lg w-full transition pt-1"
-			on:click={() => {
-				showDefaultPermissionsModal = true;
-			}}
-		>
-			<div class="flex items-center gap-2.5">
-				<div class="p-1.5 bg-black/5 dark:bg-white/10 rounded-full">
-					<UsersSolid className="size-4" />
-				</div>
+                <div class="space-y-2">
+                        {#each permissionRoles as role}
+                                <button
+                                        class="flex items-center justify-between rounded-lg w-full transition pt-1"
+                                        on:click={() => {
+                                                openDefaultPermissionsModal(role);
+                                        }}
+                                >
+                                        <div class="flex items-center gap-2.5">
+                                                <div class="p-1.5 bg-black/5 dark:bg-white/10 rounded-full">
+                                                        {#if role === 'guest'}
+                                                                <UserCircleSolid className="size-4" />
+                                                        {:else}
+                                                                <UsersSolid className="size-4" />
+                                                        {/if}
+                                                </div>
 
-				<div class="text-left">
-					<div class=" text-sm font-medium">{$i18n.t('Default permissions')}</div>
+                                                <div class="text-left">
+                                                        <div class=" text-sm font-medium">
+                                                                {#if role === 'guest'}
+                                                                        {$i18n.t('Guest permissions')}
+                                                                {:else}
+                                                                        {$i18n.t('Default permissions')}
+                                                                {/if}
+                                                        </div>
 
-					<div class="flex text-xs mt-0.5">
-						{$i18n.t('applies to all users with the "user" role')}
-					</div>
-				</div>
-			</div>
+                                                        <div class="flex text-xs mt-0.5">
+                                                                {$i18n.t('Role')}: {$i18n.t(role)}
+                                                        </div>
+                                                </div>
+                                        </div>
 
-			<div>
-				<ChevronRight strokeWidth="2.5" />
-			</div>
-		</button>
-	</div>
+                                        <div>
+                                                <ChevronRight strokeWidth="2.5" />
+                                        </div>
+                                </button>
+                        {/each}
+                </div>
+        </div>
 {/if}

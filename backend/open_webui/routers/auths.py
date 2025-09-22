@@ -50,7 +50,10 @@ from open_webui.utils.auth import (
     get_http_authorization_cred,
 )
 from open_webui.utils.webhook import post_webhook
-from open_webui.utils.access_control import get_permissions
+from open_webui.utils.access_control import (
+    get_permissions,
+    get_role_permissions_config,
+)
 
 from typing import Optional, List
 
@@ -115,9 +118,10 @@ async def get_session_user(
             secure=WEBUI_AUTH_COOKIE_SECURE,
         )
 
-    user_permissions = get_permissions(
-        user.id, request.app.state.config.USER_PERMISSIONS
+    default_permissions, _ = get_role_permissions_config(
+        request.app.state.config, user.role
     )
+    user_permissions = get_permissions(user.id, default_permissions)
 
     return {
         "token": token,
@@ -416,9 +420,10 @@ async def ldap_auth(request: Request, response: Response, form_data: LdapForm):
                     secure=WEBUI_AUTH_COOKIE_SECURE,
                 )
 
-                user_permissions = get_permissions(
-                    user.id, request.app.state.config.USER_PERMISSIONS
+                default_permissions, _ = get_role_permissions_config(
+                    request.app.state.config, user.role
                 )
+                user_permissions = get_permissions(user.id, default_permissions)
 
                 if (
                     user.role != "admin"
@@ -538,9 +543,10 @@ async def signin(request: Request, response: Response, form_data: SigninForm):
             secure=WEBUI_AUTH_COOKIE_SECURE,
         )
 
-        user_permissions = get_permissions(
-            user.id, request.app.state.config.USER_PERMISSIONS
+        default_permissions, _ = get_role_permissions_config(
+            request.app.state.config, user.role
         )
+        user_permissions = get_permissions(user.id, default_permissions)
 
         return {
             "token": token,
@@ -647,9 +653,10 @@ async def signup(request: Request, response: Response, form_data: SignupForm):
                     },
                 )
 
-            user_permissions = get_permissions(
-                user.id, request.app.state.config.USER_PERMISSIONS
+            default_permissions, _ = get_role_permissions_config(
+                request.app.state.config, user.role
             )
+            user_permissions = get_permissions(user.id, default_permissions)
 
             if not has_users:
                 # Disable signup after the first user is created
@@ -880,7 +887,7 @@ async def update_admin_config(
     request.app.state.config.ENABLE_CHANNELS = form_data.ENABLE_CHANNELS
     request.app.state.config.ENABLE_NOTES = form_data.ENABLE_NOTES
 
-    if form_data.DEFAULT_USER_ROLE in ["pending", "user", "admin"]:
+    if form_data.DEFAULT_USER_ROLE in ["pending", "user", "guest", "admin"]:
         request.app.state.config.DEFAULT_USER_ROLE = form_data.DEFAULT_USER_ROLE
 
     pattern = r"^(-1|0|(-?\d+(\.\d+)?)(ms|s|m|h|d|w))$"

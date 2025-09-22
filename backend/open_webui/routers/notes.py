@@ -18,7 +18,11 @@ from open_webui.env import SRC_LOG_LEVELS
 
 
 from open_webui.utils.auth import get_admin_user, get_verified_user
-from open_webui.utils.access_control import has_access, has_permission
+from open_webui.utils.access_control import (
+    get_role_permissions_config,
+    has_access,
+    has_permission,
+)
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MODELS"])
@@ -32,9 +36,15 @@ router = APIRouter()
 
 @router.get("/", response_model=list[NoteUserResponse])
 async def get_notes(request: Request, user=Depends(get_verified_user)):
+    default_permissions, fallback_permissions = get_role_permissions_config(
+        request.app.state.config, user.role
+    )
 
     if user.role != "admin" and not has_permission(
-        user.id, "features.notes", request.app.state.config.USER_PERMISSIONS
+        user.id,
+        "features.notes",
+        default_permissions,
+        fallback_permissions,
     ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -65,8 +75,15 @@ class NoteTitleIdResponse(BaseModel):
 async def get_note_list(
     request: Request, page: Optional[int] = None, user=Depends(get_verified_user)
 ):
+    default_permissions, fallback_permissions = get_role_permissions_config(
+        request.app.state.config, user.role
+    )
+
     if user.role != "admin" and not has_permission(
-        user.id, "features.notes", request.app.state.config.USER_PERMISSIONS
+        user.id,
+        "features.notes",
+        default_permissions,
+        fallback_permissions,
     ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -96,9 +113,15 @@ async def get_note_list(
 async def create_new_note(
     request: Request, form_data: NoteForm, user=Depends(get_verified_user)
 ):
+    default_permissions, fallback_permissions = get_role_permissions_config(
+        request.app.state.config, user.role
+    )
 
     if user.role != "admin" and not has_permission(
-        user.id, "features.notes", request.app.state.config.USER_PERMISSIONS
+        user.id,
+        "features.notes",
+        default_permissions,
+        fallback_permissions,
     ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -122,8 +145,15 @@ async def create_new_note(
 
 @router.get("/{id}", response_model=Optional[NoteModel])
 async def get_note_by_id(request: Request, id: str, user=Depends(get_verified_user)):
+    default_permissions, fallback_permissions = get_role_permissions_config(
+        request.app.state.config, user.role
+    )
+
     if user.role != "admin" and not has_permission(
-        user.id, "features.notes", request.app.state.config.USER_PERMISSIONS
+        user.id,
+        "features.notes",
+        default_permissions,
+        fallback_permissions,
     ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -156,8 +186,15 @@ async def get_note_by_id(request: Request, id: str, user=Depends(get_verified_us
 async def update_note_by_id(
     request: Request, id: str, form_data: NoteForm, user=Depends(get_verified_user)
 ):
+    default_permissions, fallback_permissions = get_role_permissions_config(
+        request.app.state.config, user.role
+    )
+
     if user.role != "admin" and not has_permission(
-        user.id, "features.notes", request.app.state.config.USER_PERMISSIONS
+        user.id,
+        "features.notes",
+        default_permissions,
+        fallback_permissions,
     ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -201,8 +238,15 @@ async def update_note_by_id(
 
 @router.delete("/{id}/delete", response_model=bool)
 async def delete_note_by_id(request: Request, id: str, user=Depends(get_verified_user)):
+    default_permissions, fallback_permissions = get_role_permissions_config(
+        request.app.state.config, user.role
+    )
+
     if user.role != "admin" and not has_permission(
-        user.id, "features.notes", request.app.state.config.USER_PERMISSIONS
+        user.id,
+        "features.notes",
+        default_permissions,
+        fallback_permissions,
     ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

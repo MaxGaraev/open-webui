@@ -19,7 +19,11 @@ from open_webui.models.tools import (
 from open_webui.utils.plugin import load_tool_module_by_id, replace_imports
 from open_webui.utils.tools import get_tool_specs
 from open_webui.utils.auth import get_admin_user, get_verified_user
-from open_webui.utils.access_control import has_access, has_permission
+from open_webui.utils.access_control import (
+    get_role_permissions_config,
+    has_access,
+    has_permission,
+)
 from open_webui.utils.tools import get_tool_servers
 
 from open_webui.env import SRC_LOG_LEVELS
@@ -193,8 +197,15 @@ async def create_new_tools(
     form_data: ToolForm,
     user=Depends(get_verified_user),
 ):
+    default_permissions, fallback_permissions = get_role_permissions_config(
+        request.app.state.config, user.role
+    )
+
     if user.role != "admin" and not has_permission(
-        user.id, "workspace.tools", request.app.state.config.USER_PERMISSIONS
+        user.id,
+        "workspace.tools",
+        default_permissions,
+        fallback_permissions,
     ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

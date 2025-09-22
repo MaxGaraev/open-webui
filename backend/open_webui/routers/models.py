@@ -17,7 +17,11 @@ from fastapi.responses import FileResponse, StreamingResponse
 
 
 from open_webui.utils.auth import get_admin_user, get_verified_user
-from open_webui.utils.access_control import has_access, has_permission
+from open_webui.utils.access_control import (
+    get_role_permissions_config,
+    has_access,
+    has_permission,
+)
 from open_webui.config import BYPASS_ADMIN_ACCESS_CONTROL, STATIC_DIR
 
 router = APIRouter()
@@ -57,8 +61,15 @@ async def create_new_model(
     form_data: ModelForm,
     user=Depends(get_verified_user),
 ):
+    default_permissions, fallback_permissions = get_role_permissions_config(
+        request.app.state.config, user.role
+    )
+
     if user.role != "admin" and not has_permission(
-        user.id, "workspace.models", request.app.state.config.USER_PERMISSIONS
+        user.id,
+        "workspace.models",
+        default_permissions,
+        fallback_permissions,
     ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

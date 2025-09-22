@@ -21,7 +21,11 @@ from open_webui.storage.provider import Storage
 
 from open_webui.constants import ERROR_MESSAGES
 from open_webui.utils.auth import get_verified_user
-from open_webui.utils.access_control import has_access, has_permission
+from open_webui.utils.access_control import (
+    get_role_permissions_config,
+    has_access,
+    has_permission,
+)
 
 
 from open_webui.env import SRC_LOG_LEVELS
@@ -143,8 +147,15 @@ async def get_knowledge_list(user=Depends(get_verified_user)):
 async def create_new_knowledge(
     request: Request, form_data: KnowledgeForm, user=Depends(get_verified_user)
 ):
+    default_permissions, fallback_permissions = get_role_permissions_config(
+        request.app.state.config, user.role
+    )
+
     if user.role != "admin" and not has_permission(
-        user.id, "workspace.knowledge", request.app.state.config.USER_PERMISSIONS
+        user.id,
+        "workspace.knowledge",
+        default_permissions,
+        fallback_permissions,
     ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -158,7 +169,8 @@ async def create_new_knowledge(
         and not has_permission(
             user.id,
             "sharing.public_knowledge",
-            request.app.state.config.USER_PERMISSIONS,
+            default_permissions,
+            fallback_permissions,
         )
     ):
         form_data.access_control = {}
@@ -320,13 +332,17 @@ async def update_knowledge_by_id(
         )
 
     # Check if user can share publicly
+    default_permissions, fallback_permissions = get_role_permissions_config(
+        request.app.state.config, user.role
+    )
     if (
         user.role != "admin"
         and form_data.access_control == None
         and not has_permission(
             user.id,
             "sharing.public_knowledge",
-            request.app.state.config.USER_PERMISSIONS,
+            default_permissions,
+            fallback_permissions,
         )
     ):
         form_data.access_control = {}
