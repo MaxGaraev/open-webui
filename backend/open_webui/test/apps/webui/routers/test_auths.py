@@ -1,3 +1,5 @@
+from fastapi import status
+
 from test.util.abstract_integration_test import AbstractPostgresTest
 from test.util.mock_user import mock_webui_user
 
@@ -115,6 +117,40 @@ class TestAuths(AbstractPostgresTest):
         assert data["profile_image_url"] == "/user.png"
         assert data["token"] is not None and len(data["token"]) > 0
         assert data["token_type"] == "Bearer"
+
+    def test_guest_signin_disabled(self):
+        from open_webui.routers.webui import app
+
+        previous = app.state.config.ENABLE_GUEST_MODE
+        try:
+            app.state.config.ENABLE_GUEST_MODE = False
+            response = self.fast_api_client.post(self.create_url("/guest"))
+        finally:
+            app.state.config.ENABLE_GUEST_MODE = previous
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_guest_signin(self):
+        from open_webui.routers.webui import app
+
+        previous = app.state.config.ENABLE_GUEST_MODE
+        try:
+            app.state.config.ENABLE_GUEST_MODE = True
+            response = self.fast_api_client.post(self.create_url("/guest"))
+        finally:
+            app.state.config.ENABLE_GUEST_MODE = previous
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["role"] == "guest"
+        assert data["token_type"] == "Bearer"
+        assert data["permissions"] is not None
+
+        db_user = self.users.get_user_by_id(data["id"])
+        assert db_user is not None
+        assert db_user.role == "guest"
+        assert db_user.email == data["email"].lower()
+        assert db_user.info == {"is_guest": True}
 
     def test_add_user(self):
         with mock_webui_user():
