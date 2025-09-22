@@ -1103,6 +1103,13 @@ ENABLE_LOGIN_FORM = PersistentConfig(
 )
 
 
+ENABLE_GUEST_MODE = PersistentConfig(
+    "ENABLE_GUEST_MODE",
+    "auth.enable_guest_mode",
+    os.environ.get("ENABLE_GUEST_MODE", "False").lower() == "true",
+)
+
+
 DEFAULT_LOCALE = PersistentConfig(
     "DEFAULT_LOCALE",
     "ui.default_locale",
