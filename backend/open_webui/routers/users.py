@@ -36,7 +36,11 @@ from open_webui.env import SRC_LOG_LEVELS, STATIC_DIR
 
 
 from open_webui.utils.auth import get_admin_user, get_password_hash, get_verified_user
-from open_webui.utils.access_control import get_permissions, has_permission
+from open_webui.utils.access_control import (
+    get_permissions,
+    get_role_permissions_config,
+    has_permission,
+)
 
 
 log = logging.getLogger(__name__)
@@ -135,9 +139,10 @@ async def get_user_groups(user=Depends(get_verified_user)):
 
 @router.get("/permissions")
 async def get_user_permissisions(request: Request, user=Depends(get_verified_user)):
-    user_permissions = get_permissions(
-        user.id, request.app.state.config.USER_PERMISSIONS
+    default_permissions, _ = get_role_permissions_config(
+        request.app.state.config, user.role
     )
+    user_permissions = get_permissions(user.id, default_permissions)
 
     return user_permissions
 
@@ -197,28 +202,57 @@ class UserPermissions(BaseModel):
 
 
 @router.get("/default/permissions", response_model=UserPermissions)
-async def get_default_user_permissions(request: Request, user=Depends(get_admin_user)):
+async def get_default_user_permissions(
+    request: Request,
+    role: str = "user",
+    user=Depends(get_admin_user),
+):
+    if role not in {"user", "guest"}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid role",
+        )
+
+    default_permissions, _ = get_role_permissions_config(
+        request.app.state.config, role
+    )
+
     return {
         "workspace": WorkspacePermissions(
-            **request.app.state.config.USER_PERMISSIONS.get("workspace", {})
+            **default_permissions.get("workspace", {})
         ),
         "sharing": SharingPermissions(
-            **request.app.state.config.USER_PERMISSIONS.get("sharing", {})
+            **default_permissions.get("sharing", {})
         ),
         "chat": ChatPermissions(
-            **request.app.state.config.USER_PERMISSIONS.get("chat", {})
+            **default_permissions.get("chat", {})
         ),
         "features": FeaturesPermissions(
-            **request.app.state.config.USER_PERMISSIONS.get("features", {})
+            **default_permissions.get("features", {})
         ),
     }
 
 
 @router.post("/default/permissions")
 async def update_default_user_permissions(
-    request: Request, form_data: UserPermissions, user=Depends(get_admin_user)
+    request: Request,
+    form_data: UserPermissions,
+    role: str = "user",
+    user=Depends(get_admin_user),
 ):
-    request.app.state.config.USER_PERMISSIONS = form_data.model_dump()
+    if role not in {"user", "guest"}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid role",
+        )
+
+    permissions = form_data.model_dump()
+
+    if role == "guest":
+        request.app.state.config.GUEST_PERMISSIONS = permissions
+        return request.app.state.config.GUEST_PERMISSIONS
+
+    request.app.state.config.USER_PERMISSIONS = permissions
     return request.app.state.config.USER_PERMISSIONS
 
 
@@ -249,13 +283,18 @@ async def update_user_settings_by_session_user(
     request: Request, form_data: UserSettings, user=Depends(get_verified_user)
 ):
     updated_user_settings = form_data.model_dump()
+    default_permissions, fallback_permissions = get_role_permissions_config(
+        request.app.state.config, user.role
+    )
+
     if (
         user.role != "admin"
         and "toolServers" in updated_user_settings.get("ui").keys()
         and not has_permission(
             user.id,
             "features.direct_tool_servers",
-            request.app.state.config.USER_PERMISSIONS,
+            default_permissions,
+            fallback_permissions,
         )
     ):
         # If the user is not an admin and does not have permission to use tool servers, remove the key

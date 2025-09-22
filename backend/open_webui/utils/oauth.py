@@ -26,6 +26,7 @@ from open_webui.models.users import Users
 
 
 from open_webui.models.groups import Groups, GroupModel, GroupUpdateForm, GroupForm
+from open_webui.utils.access_control import get_role_permissions_config
 from open_webui.config import (
     DEFAULT_USER_ROLE,
     ENABLE_OAUTH_SIGNUP,
@@ -777,10 +778,13 @@ class OAuthManager:
                 auth_manager_config.ENABLE_OAUTH_GROUP_MANAGEMENT
                 and user.role != "admin"
             ):
+                default_permissions, _ = get_role_permissions_config(
+                    request.app.state.config, user.role
+                )
                 self.update_user_groups(
                     user=user,
                     user_data=user_data,
-                    default_permissions=request.app.state.config.USER_PERMISSIONS,
+                    default_permissions=default_permissions,
                 )
 
         except Exception as e:

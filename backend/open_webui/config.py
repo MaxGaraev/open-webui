@@ -1389,6 +1389,55 @@ USER_PERMISSIONS = PersistentConfig(
     DEFAULT_USER_PERMISSIONS,
 )
 
+DEFAULT_GUEST_PERMISSIONS = {
+    "workspace": {
+        "models": False,
+        "knowledge": False,
+        "prompts": False,
+        "tools": False,
+    },
+    "sharing": {
+        "public_models": False,
+        "public_knowledge": False,
+        "public_prompts": False,
+        "public_tools": False,
+    },
+    "chat": {
+        "controls": True,
+        "valves": True,
+        "system_prompt": True,
+        "params": True,
+        "file_upload": True,
+        "delete": True,
+        "delete_message": True,
+        "continue_response": True,
+        "regenerate_response": True,
+        "rate_response": True,
+        "edit": True,
+        "share": True,
+        "export": True,
+        "stt": True,
+        "tts": True,
+        "call": True,
+        "multiple_models": True,
+        "temporary": True,
+        "temporary_enforced": False,
+    },
+    "features": {
+        "direct_tool_servers": False,
+        "web_search": True,
+        "image_generation": True,
+        "code_interpreter": True,
+        "notes": True,
+    },
+}
+
+GUEST_PERMISSIONS = PersistentConfig(
+    "GUEST_PERMISSIONS",
+    "guest.permissions",
+    DEFAULT_GUEST_PERMISSIONS,
+)
+
 ENABLE_CHANNELS = PersistentConfig(
     "ENABLE_CHANNELS",
     "channels.enable",

@@ -1,10 +1,28 @@
-from typing import Optional, Set, Union, List, Dict, Any
+from typing import Any, Dict, List, Optional, Set
 from open_webui.models.users import Users, UserModel
+
 from open_webui.models.groups import Groups
 
 
-from open_webui.config import DEFAULT_USER_PERMISSIONS
+from open_webui.config import (
+    DEFAULT_USER_PERMISSIONS,
+    DEFAULT_GUEST_PERMISSIONS,
+)
 import json
+
+
+def get_role_permissions_config(app_config, role: str) -> tuple[dict, dict]:
+    if role == "guest":
+        permissions = getattr(app_config, "GUEST_PERMISSIONS", DEFAULT_GUEST_PERMISSIONS)
+        fallback = DEFAULT_GUEST_PERMISSIONS
+    else:
+        permissions = getattr(app_config, "USER_PERMISSIONS", DEFAULT_USER_PERMISSIONS)
+        fallback = DEFAULT_USER_PERMISSIONS
+
+    permissions_copy = json.loads(json.dumps(permissions or {}))
+    permissions_copy = fill_missing_permissions(permissions_copy, fallback)
+
+    return permissions_copy, fallback
 
 
 def fill_missing_permissions(
@@ -71,7 +89,8 @@ def get_permissions(
 def has_permission(
     user_id: str,
     permission_key: str,
-    default_permissions: Dict[str, Any] = {},
+    default_permissions: Optional[Dict[str, Any]] = None,
+    fallback_permissions: Optional[Dict[str, Any]] = None,
 ) -> bool:
     """
     Check if a user has a specific permission by checking the group permissions
@@ -99,8 +118,11 @@ def has_permission(
             return True
 
     # Check default permissions afterward if the group permissions don't allow it
+    if fallback_permissions is None:
+        fallback_permissions = DEFAULT_USER_PERMISSIONS
+
     default_permissions = fill_missing_permissions(
-        default_permissions, DEFAULT_USER_PERMISSIONS
+        default_permissions or {}, fallback_permissions
     )
     return get_permission(default_permissions, permission_hierarchy)
 

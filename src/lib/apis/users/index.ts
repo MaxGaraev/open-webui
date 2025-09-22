@@ -28,16 +28,25 @@ export const getUserGroups = async (token: string) => {
 	return res;
 };
 
-export const getUserDefaultPermissions = async (token: string) => {
-	let error = null;
+export const getUserDefaultPermissions = async (token: string, role: string = 'user') => {
+        let error = null;
 
-	const res = await fetch(`${WEBUI_API_BASE_URL}/users/default/permissions`, {
-		method: 'GET',
-		headers: {
-			'Content-Type': 'application/json',
-			Authorization: `Bearer ${token}`
-		}
-	})
+        const searchParams = new URLSearchParams();
+        if (role) {
+                searchParams.set('role', role);
+        }
+
+        const queryString = searchParams.toString();
+        const res = await fetch(
+                `${WEBUI_API_BASE_URL}/users/default/permissions${queryString ? `?${queryString}` : ''}`,
+                {
+                        method: 'GET',
+                        headers: {
+                                'Content-Type': 'application/json',
+                                Authorization: `Bearer ${token}`
+                        }
+                }
+        )
 		.then(async (res) => {
 			if (!res.ok) throw await res.json();
 			return res.json();
@@ -55,19 +64,32 @@ export const getUserDefaultPermissions = async (token: string) => {
 	return res;
 };
 
-export const updateUserDefaultPermissions = async (token: string, permissions: object) => {
-	let error = null;
+export const updateUserDefaultPermissions = async (
+        token: string,
+        permissions: object,
+        role: string = 'user'
+) => {
+        let error = null;
 
-	const res = await fetch(`${WEBUI_API_BASE_URL}/users/default/permissions`, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			Authorization: `Bearer ${token}`
-		},
-		body: JSON.stringify({
-			...permissions
-		})
-	})
+        const searchParams = new URLSearchParams();
+        if (role) {
+                searchParams.set('role', role);
+        }
+
+        const queryString = searchParams.toString();
+        const res = await fetch(
+                `${WEBUI_API_BASE_URL}/users/default/permissions${queryString ? `?${queryString}` : ''}`,
+                {
+                        method: 'POST',
+                        headers: {
+                                'Content-Type': 'application/json',
+                                Authorization: `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                                ...permissions
+                        })
+                }
+        )
 		.then(async (res) => {
 			if (!res.ok) throw await res.json();
 			return res.json();
