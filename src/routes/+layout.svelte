@@ -31,8 +31,8 @@
 	import { page } from '$app/stores';
 	import { Toaster, toast } from 'svelte-sonner';
 
-	import { executeToolServer, getBackendConfig } from '$lib/apis';
-	import { getSessionUser, userSignOut } from '$lib/apis/auths';
+        import { executeToolServer, getBackendConfig } from '$lib/apis';
+        import { getSessionUser, guestSignIn, userSignOut } from '$lib/apis/auths';
 
 	import '../tailwind.css';
 	import '../app.css';
@@ -616,13 +616,25 @@
 
 		if (backendConfig) {
 			// Save Backend Status to Store
-			await config.set(backendConfig);
-			await WEBUI_NAME.set(backendConfig.name);
+                        await config.set(backendConfig);
+                        await WEBUI_NAME.set(backendConfig.name);
 
-			if ($config) {
-				await setupSocket($config.features?.enable_websocket ?? true);
+                        if ($config) {
+                                if ($config.features?.enable_guest_mode && !localStorage.token) {
+                                        const guestUser = await guestSignIn().catch((error) => {
+                                                toast.error(`${error}`);
+                                                return null;
+                                        });
 
-				const currentUrl = `${window.location.pathname}${window.location.search}`;
+                                        if (guestUser) {
+                                                await user.set(guestUser);
+                                                await config.set(await getBackendConfig());
+                                        }
+                                }
+
+                                await setupSocket($config.features?.enable_websocket ?? true);
+
+                                const currentUrl = `${window.location.pathname}${window.location.search}`;
 				const encodedUrl = encodeURIComponent(currentUrl);
 
 				if (localStorage.token) {
