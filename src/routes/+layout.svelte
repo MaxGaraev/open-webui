@@ -620,45 +620,50 @@
                         await WEBUI_NAME.set(backendConfig.name);
 
                         if ($config) {
-                                if ($config.features?.enable_guest_mode && !localStorage.token) {
-                                        const guestUser = await guestSignIn().catch((error) => {
+                                const guestModeEnabled = $config.features?.enable_guest_mode;
+                                let guestSignInResult = undefined;
+
+                                if (guestModeEnabled && !localStorage.token) {
+                                        guestSignInResult = await guestSignIn().catch((error) => {
                                                 toast.error(`${error}`);
                                                 return null;
                                         });
 
-                                        if (guestUser) {
-                                                await user.set(guestUser);
+                                        if (guestSignInResult) {
+                                                await user.set(guestSignInResult);
                                                 await config.set(await getBackendConfig());
+                                        } else {
+                                                await user.set(null);
                                         }
                                 }
 
                                 await setupSocket($config.features?.enable_websocket ?? true);
 
                                 const currentUrl = `${window.location.pathname}${window.location.search}`;
-				const encodedUrl = encodeURIComponent(currentUrl);
+                                const encodedUrl = encodeURIComponent(currentUrl);
 
-				if (localStorage.token) {
-					// Get Session User Info
-					const sessionUser = await getSessionUser(localStorage.token).catch((error) => {
-						toast.error(`${error}`);
-						return null;
-					});
+                                if (localStorage.token) {
+                                        // Get Session User Info
+                                        const sessionUser = await getSessionUser(localStorage.token).catch((error) => {
+                                                toast.error(`${error}`);
+                                                return null;
+                                        });
 
-					if (sessionUser) {
-						await user.set(sessionUser);
-						await config.set(await getBackendConfig());
-					} else {
-						// Redirect Invalid Session User to /auth Page
-						localStorage.removeItem('token');
-						await goto(`/auth?redirect=${encodedUrl}`);
-					}
-				} else {
-					// Don't redirect if we're already on the auth page
-					// Needed because we pass in tokens from OAuth logins via URL fragments
-					if ($page.url.pathname !== '/auth') {
-						await goto(`/auth?redirect=${encodedUrl}`);
-					}
-				}
+                                        if (sessionUser) {
+                                                await user.set(sessionUser);
+                                                await config.set(await getBackendConfig());
+                                        } else {
+                                                // Redirect Invalid Session User to /auth Page
+                                                localStorage.removeItem('token');
+                                                await goto(`/auth?redirect=${encodedUrl}`);
+                                        }
+                                } else if (!guestModeEnabled || guestSignInResult === null) {
+                                        // Don't redirect if we're already on the auth page
+                                        // Needed because we pass in tokens from OAuth logins via URL fragments
+                                        if ($page.url.pathname !== '/auth') {
+                                                await goto(`/auth?redirect=${encodedUrl}`);
+                                        }
+                                }
 			}
 		} else {
 			// Redirect to /error when Backend Not Detected
